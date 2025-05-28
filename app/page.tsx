@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { useEffect, useState } from "react"
@@ -12,16 +14,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { toast, Toaster } from "sonner"
+import { useToast } from "@/hooks/use-toast"
+import { Toaster } from "@/components/ui/toaster"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Edit, Loader2, Mail, Phone, Plus, Search, Trash2, User } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { EnhancedPatientForm } from "@/components/enhanced-patient-form"
-import { validatePatientData, calculateAge } from "@/lib/validation"
 import { AlertTriangle, Calendar, MapPin } from "lucide-react"
 
 interface Patient {
-  _id: string
+  _id?: string
   patientId: string
   name: string
   dateOfBirth: string
@@ -35,22 +36,25 @@ interface Patient {
   medicalHistory: string[]
   currentPrescriptions: string[]
   doctorNotes: string
+  createdAt?: string
+  updatedAt?: string
 }
 
-export default function Home() {
+export default function HealthcareSystem() {
   const [patients, setPatients] = useState<Patient[]>([])
-  const [loading, setLoading] = useState(true)
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [searchField, setSearchField] = useState("name")
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const patientsPerPage = 6
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
+  const [loading, setLoading] = useState(false)
+  const { toast } = useToast()
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Omit<Patient, "_id" | "createdAt" | "updatedAt">>({
     patientId: "",
     name: "",
     dateOfBirth: "",
@@ -66,17 +70,21 @@ export default function Home() {
     doctorNotes: "",
   })
 
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  useEffect(() => {
+    fetchPatients()
+  }, [currentPage, searchTerm, searchField])
 
   const fetchPatients = async () => {
     setLoading(true)
     try {
-      let url = `/api/patients?page=${currentPage}&limit=${patientsPerPage}`
-      if (searchTerm && searchField) {
-        url += `&search=${searchTerm}&searchField=${searchField}`
-      }
-      const response = await fetch(url)
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: "6",
+        search: searchTerm,
+        field: searchField,
+      })
+
+      const response = await fetch(`/api/patients?${params}`)
       const data = await response.json()
 
       if (response.ok) {
@@ -100,23 +108,7 @@ export default function Home() {
     }
   }
 
-  useEffect(() => {
-    fetchPatients()
-  }, [currentPage, searchTerm, searchField])
-
   const handleAddPatient = async () => {
-    const validation = validatePatientData(formData)
-    setValidationErrors(validation.errors)
-
-    if (!validation.isValid) {
-      toast({
-        title: "Validation Error",
-        description: "Please fix the errors in the form before submitting",
-        variant: "destructive",
-      })
-      return
-    }
-
     setIsSubmitting(true)
     try {
       const response = await fetch("/api/patients", {
@@ -157,18 +149,6 @@ export default function Home() {
 
   const handleUpdatePatient = async () => {
     if (!selectedPatient?._id) return
-
-    const validation = validatePatientData(formData)
-    setValidationErrors(validation.errors)
-
-    if (!validation.isValid) {
-      toast({
-        title: "Validation Error",
-        description: "Please fix the errors in the form before submitting",
-        variant: "destructive",
-      })
-      return
-    }
 
     setIsSubmitting(true)
     try {
@@ -224,6 +204,7 @@ export default function Home() {
           description: "Patient deleted successfully",
         })
         setIsDeleteDialogOpen(false)
+        setSelectedPatient(null)
         fetchPatients()
       } else {
         toast({
@@ -241,8 +222,15 @@ export default function Home() {
     }
   }
 
-  const handleArrayInput = (field: "allergies" | "medicalHistory" | "currentPrescriptions", value: string[]) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+  const handleArrayInput = (field: "allergies" | "medicalHistory" | "currentPrescriptions", value: string) => {
+    const items = value
+      .split(",")
+      .map((item) => item.trim())
+      .filter((item) => item)
+    setFormData((prev) => ({
+      ...prev,
+      [field]: items,
+    }))
   }
 
   const resetForm = () => {
@@ -261,7 +249,6 @@ export default function Home() {
       currentPrescriptions: [],
       doctorNotes: "",
     })
-    setValidationErrors({})
   }
 
   const openEditDialog = (patient: Patient) => {
@@ -269,7 +256,7 @@ export default function Home() {
     setFormData({
       patientId: patient.patientId,
       name: patient.name,
-      dateOfBirth: patient.dateOfBirth,
+      dateOfBirth: patient.dateOfBirth || "",
       gender: patient.gender,
       contactInfo: patient.contactInfo,
       allergies: patient.allergies,
@@ -277,13 +264,27 @@ export default function Home() {
       currentPrescriptions: patient.currentPrescriptions,
       doctorNotes: patient.doctorNotes,
     })
-    setValidationErrors({})
     setIsEditDialogOpen(true)
   }
 
   const openDeleteDialog = (patient: Patient) => {
     setSelectedPatient(patient)
     setIsDeleteDialogOpen(true)
+  }
+
+  const calculateAge = (dateOfBirth: string): number => {
+    if (!dateOfBirth) return 0
+
+    const birthDate = new Date(dateOfBirth)
+    const today = new Date()
+    let age = today.getFullYear() - birthDate.getFullYear()
+    const monthDiff = today.getMonth() - birthDate.getMonth()
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--
+    }
+
+    return age
   }
 
   return (
@@ -344,7 +345,7 @@ export default function Home() {
                       Enter patient information to create a new record
                     </DialogDescription>
                   </DialogHeader>
-                  <EnhancedPatientForm
+                  <PatientForm
                     formData={formData}
                     setFormData={setFormData}
                     onSubmit={handleAddPatient}
@@ -415,7 +416,7 @@ export default function Home() {
                   <div className="flex items-center gap-3 text-sm text-gray-600">
                     <Calendar className="h-4 w-4 text-blue-500" />
                     <span>
-                      {calculateAge(patient.dateOfBirth)} years old, {patient.gender}
+                      {patient.dateOfBirth ? calculateAge(patient.dateOfBirth) : "N/A"} years old, {patient.gender}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 text-sm text-gray-600">
@@ -431,7 +432,7 @@ export default function Home() {
                     <span className="line-clamp-2">{patient.contactInfo.address}</span>
                   </div>
 
-                  {patient.allergies.length > 0 && (
+                  {patient.allergies && patient.allergies.length > 0 && (
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         <AlertTriangle className="h-4 w-4 text-red-500" />
@@ -447,7 +448,7 @@ export default function Home() {
                     </div>
                   )}
 
-                  {patient.currentPrescriptions.length > 0 && (
+                  {patient.currentPrescriptions && patient.currentPrescriptions.length > 0 && (
                     <div>
                       <p className="text-sm font-medium text-gray-700 mb-2">Current Prescriptions:</p>
                       <div className="flex flex-wrap gap-1">
@@ -514,7 +515,7 @@ export default function Home() {
               <DialogTitle className="text-2xl text-gray-900">Edit Patient</DialogTitle>
               <DialogDescription className="text-gray-600">Update patient information</DialogDescription>
             </DialogHeader>
-            <EnhancedPatientForm
+            <PatientForm
               formData={formData}
               setFormData={setFormData}
               onSubmit={handleUpdatePatient}
@@ -550,6 +551,215 @@ export default function Home() {
         </Dialog>
       </div>
       <Toaster />
+    </div>
+  )
+}
+
+function PatientForm({
+  formData,
+  setFormData,
+  onSubmit,
+  onArrayInput,
+  submitLabel,
+  isSubmitting,
+}: {
+  formData: any
+  setFormData: React.Dispatch<React.SetStateAction<any>>
+  onSubmit: () => Promise<void>
+  onArrayInput: (field: "allergies" | "medicalHistory" | "currentPrescriptions", value: string) => void
+  submitLabel: string
+  isSubmitting: boolean
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Basic Information */}
+      <div className="bg-gray-50 p-4 rounded-lg">
+        <h3 className="font-semibold text-gray-900 mb-4">Basic Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label htmlFor="patientId" className="text-sm font-medium text-gray-700">
+              Patient ID <span className="text-red-500">*</span>
+            </label>
+            <Input
+              id="patientId"
+              value={formData.patientId}
+              onChange={(e) => setFormData((prev: any) => ({ ...prev, patientId: e.target.value }))}
+              placeholder="P001"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="name" className="text-sm font-medium text-gray-700">
+              Full Name <span className="text-red-500">*</span>
+            </label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) => setFormData((prev: any) => ({ ...prev, name: e.target.value }))}
+              placeholder="John Doe"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="dateOfBirth" className="text-sm font-medium text-gray-700">
+              Date of Birth <span className="text-red-500">*</span>
+            </label>
+            <Input
+              id="dateOfBirth"
+              type="date"
+              value={formData.dateOfBirth}
+              onChange={(e) => setFormData((prev: any) => ({ ...prev, dateOfBirth: e.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="gender" className="text-sm font-medium text-gray-700">
+              Gender <span className="text-red-500">*</span>
+            </label>
+            <Select
+              value={formData.gender}
+              onValueChange={(value) => setFormData((prev: any) => ({ ...prev, gender: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select gender" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Male">Male</SelectItem>
+                <SelectItem value="Female">Female</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+                <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Contact Information */}
+      <div className="bg-blue-50 p-4 rounded-lg">
+        <h3 className="font-semibold text-gray-900 mb-4">Contact Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label htmlFor="phone" className="text-sm font-medium text-gray-700">
+              Phone Number <span className="text-red-500">*</span>
+            </label>
+            <Input
+              id="phone"
+              value={formData.contactInfo.phone}
+              onChange={(e) =>
+                setFormData((prev: any) => ({
+                  ...prev,
+                  contactInfo: { ...prev.contactInfo, phone: e.target.value },
+                }))
+              }
+              placeholder="+1 (555) 123-4567"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium text-gray-700">
+              Email Address <span className="text-red-500">*</span>
+            </label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.contactInfo.email}
+              onChange={(e) =>
+                setFormData((prev: any) => ({
+                  ...prev,
+                  contactInfo: { ...prev.contactInfo, email: e.target.value },
+                }))
+              }
+              placeholder="john@example.com"
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          <label htmlFor="address" className="text-sm font-medium text-gray-700">
+            Address <span className="text-red-500">*</span>
+          </label>
+          <Input
+            id="address"
+            value={formData.contactInfo.address}
+            onChange={(e) =>
+              setFormData((prev: any) => ({
+                ...prev,
+                contactInfo: { ...prev.contactInfo, address: e.target.value },
+              }))
+            }
+            placeholder="123 Main St, City, State 12345"
+          />
+        </div>
+      </div>
+
+      {/* Medical Information */}
+      <div className="bg-red-50 p-4 rounded-lg">
+        <h3 className="font-semibold text-gray-900 mb-4">Medical Information</h3>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="allergies" className="text-sm font-medium text-gray-700">
+              Allergies
+            </label>
+            <Input
+              id="allergies"
+              value={formData.allergies.join(", ")}
+              onChange={(e) => onArrayInput("allergies", e.target.value)}
+              placeholder="Penicillin, Peanuts, Shellfish (comma-separated)"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="medicalHistory" className="text-sm font-medium text-gray-700">
+              Medical History
+            </label>
+            <Input
+              id="medicalHistory"
+              value={formData.medicalHistory.join(", ")}
+              onChange={(e) => onArrayInput("medicalHistory", e.target.value)}
+              placeholder="Diabetes, Hypertension, Previous Surgery (comma-separated)"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="prescriptions" className="text-sm font-medium text-gray-700">
+              Current Prescriptions
+            </label>
+            <Input
+              id="prescriptions"
+              value={formData.currentPrescriptions.join(", ")}
+              onChange={(e) => onArrayInput("currentPrescriptions", e.target.value)}
+              placeholder="Metformin 500mg, Lisinopril 10mg (comma-separated)"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Doctor Notes */}
+      <div className="bg-green-50 p-4 rounded-lg">
+        <h3 className="font-semibold text-gray-900 mb-4">Doctor Notes</h3>
+        <div className="space-y-2">
+          <label htmlFor="doctorNotes" className="text-sm font-medium text-gray-700">
+            Additional Notes
+          </label>
+          <Input
+            id="doctorNotes"
+            value={formData.doctorNotes}
+            onChange={(e) => setFormData((prev: any) => ({ ...prev, doctorNotes: e.target.value }))}
+            placeholder="Additional notes and observations..."
+          />
+        </div>
+      </div>
+
+      <Button onClick={onSubmit} className="w-full h-12 text-lg" disabled={isSubmitting}>
+        {isSubmitting ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Processing...
+          </>
+        ) : (
+          submitLabel
+        )}
+      </Button>
     </div>
   )
 }
