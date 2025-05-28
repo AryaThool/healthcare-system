@@ -1,63 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { connectToDatabase } from "@/lib/mongodb"
-
-export async function GET(request: NextRequest) {
-  try {
-    const { db } = await connectToDatabase()
-    const searchParams = request.nextUrl.searchParams
-
-    const page = Number.parseInt(searchParams.get("page") || "1")
-    const limit = Number.parseInt(searchParams.get("limit") || "10")
-    const search = searchParams.get("search") || ""
-    const field = searchParams.get("field") || "name"
-
-    const skip = (page - 1) * limit
-
-    // Build search query
-    const query: any = {}
-    if (search) {
-      switch (field) {
-        case "name":
-          query.name = { $regex: search, $options: "i" }
-          break
-        case "patientId":
-          query.patientId = { $regex: search, $options: "i" }
-          break
-        case "allergies":
-          query.allergies = { $in: [new RegExp(search, "i")] }
-          break
-        case "medicalHistory":
-          query.medicalHistory = { $in: [new RegExp(search, "i")] }
-          break
-        default:
-          query.$or = [{ name: { $regex: search, $options: "i" } }, { patientId: { $regex: search, $options: "i" } }]
-      }
-    }
-
-    // Get total count for pagination
-    const total = await db.collection("patients").countDocuments(query)
-    const totalPages = Math.ceil(total / limit)
-
-    // Fetch patients with pagination and sorting
-    const patients = await db
-      .collection("patients")
-      .find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .toArray()
-
-    return NextResponse.json({
-      patients,
-      currentPage: page,
-      totalPages,
-      total,
-    })
-  } catch (error) {
-    console.error("Error fetching patients:", error)
-    return NextResponse.json({ error: "Failed to fetch patients" }, { status: 500 })
-  }
-}
+import { connectToDatabase } from "@/utils/db"
 
 export async function POST(request: NextRequest) {
   try {
@@ -65,8 +7,33 @@ export async function POST(request: NextRequest) {
     const patientData = await request.json()
 
     // Validate required fields
-    if (!patientData.patientId || !patientData.name) {
-      return NextResponse.json({ error: "Patient ID and name are required" }, { status: 400 })
+    if (!patientData.patientId || !patientData.name || !patientData.dateOfBirth) {
+      return NextResponse.json(
+        {
+          error: "Patient ID, name, and date of birth are required",
+        },
+        { status: 400 },
+      )
+    }
+
+    // Validate patient ID format
+    if (!/^P\d{3,6}$/.test(patientData.patientId)) {
+      return NextResponse.json(
+        {
+          error: "Patient ID must be in format P001-P999999",
+        },
+        { status: 400 },
+      )
+    }
+
+    // Validate email format
+    if (patientData.contactInfo?.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(patientData.contactInfo.email)) {
+      return NextResponse.json(
+        {
+          error: "Please provide a valid email address",
+        },
+        { status: 400 },
+      )
     }
 
     // Check if patient ID already exists
@@ -75,7 +42,28 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingPatient) {
-      return NextResponse.json({ error: "Patient ID already exists" }, { status: 400 })
+      return NextResponse.json(
+        {
+          error: "Patient ID already exists. Please use a different ID.",
+        },
+        { status: 400 },
+      )
+    }
+
+    // Check if email already exists
+    if (patientData.contactInfo?.email) {
+      const existingEmail = await db.collection("patients").findOne({
+        "contactInfo.email": patientData.contactInfo.email,
+      })
+
+      if (existingEmail) {
+        return NextResponse.json(
+          {
+            error: "Email address already exists in the system.",
+          },
+          { status: 400 },
+        )
+      }
     }
 
     // Add timestamps
@@ -101,6 +89,11 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error("Error creating patient:", error)
-    return NextResponse.json({ error: "Failed to create patient" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Failed to create patient. Please try again.",
+      },
+      { status: 500 },
+    )
   }
 }
