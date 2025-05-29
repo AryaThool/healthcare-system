@@ -1,30 +1,65 @@
-# Healthcare system design
+# 🏥 Hospital Healthcare System
+A modern web-based application designed for managing hospital and healthcare operations such as patient registration, medical records, and staff information. The platform focuses on usability, scalability, and security, enabling efficient administration of healthcare data.
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+## 🌐 Live Demo Link
+[Hospital Healthcare System](https://hospital-healthcare-system.vercel.app/)
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/arya-thools-projects-84178a38/v0-healthcare-system-design)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/pE3w6AKl0VH)
+## 📌 Key Features
+1. Patient Management
+   - Register and update patient details including demographics and health data.
 
-## Overview
+2. Medical Record Management
+   - Store and retrieve patient medical histories such as diagnoses, treatments, and prescriptions.
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+3. Doctor & Staff Directory
+   - View categorized profiles of doctors and hospital staff with specialization and department info.
 
-## Deployment
+4. Search & Filter Tools
+   - Powerful patient and staff search utilities for efficient navigation.
 
-Your project is live at:
+5. Responsive Interface
+   - Fully optimized for desktops, tablets, and mobile devices.
 
-**[https://vercel.com/arya-thools-projects-84178a38/v0-healthcare-system-design](https://vercel.com/arya-thools-projects-84178a38/v0-healthcare-system-design)**
+## 🛠️ Tech Stack
 
-## Build your app
+| Frontend | Backend | Database | Deployment | Authentication |
+|----------|---------|----------|------------|----------------|
+| ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)<br>![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white) | ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)<br>![Express.js](https://img.shields.io/badge/Express.js-404D59?style=for-the-badge&logo=express&logoColor=white) | ![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white) | ![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white) | ![JWT](https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white) |
 
-Continue building your app on:
+## 🚀 Installation
+1. Clone the Repository
+   
+   ```bash
+    git clone https://github.com/yourusername/hospital-healthcare-system.git
+    cd hospital-healthcare-system
+   ```
+   
+2. Install Dependencies   
 
-**[https://v0.dev/chat/projects/pE3w6AKl0VH](https://v0.dev/chat/projects/pE3w6AKl0VH)**
+   ```bash
+    npm install
+   ```
+3. Configure Environment Variables
 
-## How It Works
+   ```bash
+    MONGODB_URI=your_mongodb_connection_string
+    JWT_SECRET=your_secret_key
+   ```
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+4. Run Development Server
+   ```bash
+    npm run dev
+   ```
+      
+## 📁 Project Structure
+
+```bash
+ hospital-healthcare-system/
+├── components/          # Reusable UI components
+├── pages/               # Application routes and views
+├── public/              # Static assets
+├── styles/              # CSS / Tailwind styles
+├── utils/               # Helper functions
+├── .env                 # Environment configuration
+└── package.json         # Project configuration
+```
