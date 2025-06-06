@@ -1,5 +1,5 @@
 # 🏥 Hospital Healthcare System
-A modern web-based application designed for managing hospital and healthcare operations such as patient registration, medical records, and staff information. The platform focuses on usability, scalability, and security, enabling efficient administration of healthcare data.
+A modern web-based application designed for managing hospital and healthcare operations such as patient registration, medical records. The platform focuses on usability, scalability, and security, enabling efficient administration of healthcare data.
 
 ## 🌐 Live Demo Link
 [Hospital Healthcare System](https://hospital-healthcare-system.vercel.app/)
